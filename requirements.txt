@@ -1,0 +1,5 @@
+#binary dependency for compiling gevent/greenlet:
+#python-dev libevent-dev (debian/ubuntu)
+gevent
+gevent-websocket
+gunicorn
