@@ -3,3 +3,5 @@
 gevent
 gevent-websocket
 gunicorn
+cx_Oracle
+webob
