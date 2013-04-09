@@ -83,7 +83,7 @@ class DBConnection():
     def cursor(self):
         return DBCursor(self,self.conn_.apply(self.conn_.conn.cursor))
 
-class DBCursor():
+class DBCursor(object):
     def __init__(self,conn,cursor):
         self.conn = conn
         self.cursor = cursor
