@@ -1,9 +1,14 @@
 import json
+from geventwebsocket import WebSocketError
 import webob, webob.dec, webob.static
 import gevent
+from gevent import pywsgi
+from geventwebsocket.handler import WebSocketHandler
+from json_encoder import RegistryJsonEncoder
+import db
 
 
-class Service1(object):
+class Math(object):
   def fast_add(self, a, b):
     return a + b
 
@@ -12,38 +17,60 @@ class Service1(object):
     return a + b
 
 
+class DB(object):
+  def __init__(self, pool):
+    self.pool = pool
+
+  def get_artists(self):
+    cursor = self.pool.get().cursor()
+    cursor.execute('select * from Artist')
+    return cursor
+
+
 class JsonRpcServer(object):
-  def __init__(self, services):
+  def __init__(self, services, encoder, decoder):
     self.services = services
+    self.encoder = encoder
+    self.decoder = decoder
 
   def server_loop(self, websocket):
     while True:
-      message = websocket.receive()
-      gevent.spawn(self.handle_message, message)
+      try:
+        message = websocket.receive()
+        gevent.spawn(self.handle_message, websocket, message)
+      except WebSocketError:
+        break
 
   def handle_message(self, websocket, message):
-    call_spec = json.loads(message)
-    call_id = call_spec['id']
-    service = call_spec['service']
-    method = call_spec['method']
-    args = call_spec['args'] or []
-    kwargs = call_spec['kwargs'] or {}
+    call_spec = self.decoder.decode(message)
+    call_id = call_spec.get('id')
+    if call_id is None:
+      return
+    try:
+      result = self.handle_rpc(call_id, call_spec)
+      wrapped = dict(success=True, result=result, id=call_id)
+      encoded = self.encoder.encode(wrapped)
+      websocket.send(encoded)
+    except BaseException, e:
+      wrapped = dict(success=False, error=dict(message=e.message,
+                                               type=type(e).__name__))
+      websocket.send(self.encoder.encode(wrapped))
+
+
+  def handle_rpc(self, call_id, call_spec):
+    service = call_spec.get('service', '')
+    method = call_spec.get('method', '')
+    args = call_spec.get('args', [])
+    kwargs = call_spec.get('kwargs', {})
     service_instance = self.services.get(service, None)
     if service_instance is None:
       return dict(success=False, id=call_id,
                   error=dict(message="invalid service name"))
-    method_instance = getattr(service_instance(method, None))
+    method_instance = getattr(service_instance, method, None)
     if method_instance is None or not callable(method_instance):
       return dict(success=False, id=call_id,
                   error=dict(message="invalid method name"))
-    try:
-      result = method_instance(*args, **kwargs)
-      wrapped = dict(success=True, result=result, id=call_id)
-      encoded = json.dumps(wrapped)
-      websocket.send(encoded)
-    except BaseException, e:
-      wrapped = dict(success=False, error=dict(message=e.message, exception=e))
-      websocket.send(json.dumps(wrapped))
+    return method_instance(*args, **kwargs)
 
 
 class WebServer(object):
@@ -56,15 +83,49 @@ class WebServer(object):
     """
     :type request: webob.Request
     """
-    root = request.path_info.lstrip('/')
-    if root == '/client':
+    root = request.path_info_peek().lstrip('/')
+    if root == 'client':
       request.path_info_pop()
       return self.static_files(request)
     elif root == 'rpc':
       websocket = request.environ['wsgi.websocket']
-      gevent.spawn(self.rpc_server.server_loop, websocket)
+      self.rpc_server.server_loop(websocket)
 
 
-services = {'service1': Service1()} #register more services in here
-rpc_server = JsonRpcServer(services)
-web_server = WebServer(rpc_server)
+#gevent / geventwebsocket logging error fix
+def log_request(self):
+  log = self.server.log
+  if log:
+    if hasattr(log, "info"):
+      log.info(self.format_request() + '\n')
+    else:
+      log.write(self.format_request() + '\n')
+
+
+gevent.pywsgi.WSGIHandler.log_request = log_request
+
+handler = None
+
+
+def setup_services():
+  services = {}
+  services['db'] = DB(db.DBPool('sample_db.sqlite', 1, 'sqlite3'))
+  services['math'] = Math()
+  return services
+
+
+def main(run_server):
+  global handler
+  services = setup_services()
+  encoder = RegistryJsonEncoder(sort_keys=True, indent=2)
+  rpc_server = JsonRpcServer(services, encoder, json.JSONDecoder())
+  web_server = WebServer(rpc_server)
+  handler = web_server.handler
+  if run_server:
+    server = pywsgi.WSGIServer(("", 8000), handler,
+                               handler_class=WebSocketHandler)
+    server.serve_forever()
+
+
+main(__name__ == '__main__')
+
