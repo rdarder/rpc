@@ -53,7 +53,7 @@ class DBConnection_():
     def connect(self,connectionstring,modulename):
         self.conn = self.apply(__import__(modulename).connect,connectionstring)
 
-    def __del__():
+    def __del__(self):
         self.conn.close()
 
     def apply(self,function,*args):
