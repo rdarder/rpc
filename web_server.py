@@ -26,6 +26,12 @@ class DB(object):
     cursor.execute('select * from Artist')
     return cursor
 
+  def issue_sql(self, query):
+    conn = self.pool.get()
+    cursor = conn.cursor()
+    cursor.execute(query)
+    return cursor
+
 
 class JsonRpcServer(object):
   def __init__(self, services, encoder, decoder):
@@ -109,7 +115,7 @@ handler = None
 
 def setup_services():
   services = {}
-  services['db'] = DB(db.DBPool('sample_db.sqlite', 1, 'sqlite3'))
+  services['db'] = DB(db.DBPool('sample_db.sqlite', 10, 'sqlite3'))
   services['math'] = Math()
   return services
 
