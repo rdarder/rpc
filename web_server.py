@@ -1,6 +1,9 @@
 import json
+import os
+from traceback import extract_tb
 from geventwebsocket import WebSocketError
-import webob, webob.dec, webob.static
+import sys
+import webob, webob.dec, webob.static, webob.exc
 import gevent
 from gevent import pywsgi
 from geventwebsocket.handler import WebSocketHandler
@@ -8,41 +11,53 @@ from json_encoder import RegistryJsonEncoder
 import db
 
 
-class Math(object):
-  def fast_add(self, a, b):
-    return a + b
+class ErrorHandler(object):
+  def __init__(self, root, user_filenames):
+    self.filename_mapping = {}
+    for user_filename in user_filenames:
+      if user_filename.endswith('.pyc'):
+        user_filename = user_filename[:-1]
 
-  def slow_add(self, a, b):
-    gevent.sleep(5)
-    return a + b
+      if user_filename.startswith(root):
+        mapped_filename = user_filename[len(root):]
+      else:
+        mapped_filename = user_filename
 
+      self.filename_mapping[user_filename] = mapped_filename
 
-class DB(object):
-  def __init__(self, pool):
-    self.pool = pool
+  def format_trace(self, traceback):
+    formatted = []
+    for filename, line_number, function_name, code in extract_tb(traceback):
+      if filename in self.filename_mapping:
+        formatted.append(dict(filename=self.filename_mapping[filename],
+                              line=line_number, function=function_name,
+                              code=code))
+    return formatted
 
-  def get_artists(self):
-    cursor = self.pool.get().cursor()
-    cursor.execute('select * from Artist')
-    return cursor
-
-  def issue_sql(self, query):
-    conn = self.pool.get()
-    cursor = conn.cursor()
-    cursor.execute(query)
-    return cursor
+  def get_error_response(self):
+    exception_type, value, traceback = sys.exc_info()
+    return dict(success=False,
+                error=dict(type=exception_type.__name__,
+                           message=value.message,
+                           traceback=self.format_trace(traceback))
+    )
 
 
 class JsonRpcServer(object):
-  def __init__(self, services, encoder, decoder):
+  last_resort_response = {'success': False, 'error': {'type': 'internal'}}
+
+  def __init__(self, services, encoder, decoder, error_handler):
     self.services = services
     self.encoder = encoder
     self.decoder = decoder
+    self.error_handler = error_handler
 
   def server_loop(self, websocket):
     while True:
       try:
         message = websocket.receive()
+        if message is None:
+          break
         gevent.spawn(self.handle_message, websocket, message)
       except WebSocketError:
         break
@@ -52,15 +67,16 @@ class JsonRpcServer(object):
     call_id = call_spec.get('id')
     if call_id is None:
       return
+    response = self.last_resort_response
     try:
       result = self.handle_rpc(call_id, call_spec)
-      wrapped = dict(success=True, result=result, id=call_id)
-      encoded = self.encoder.encode(wrapped)
+      response = dict(success=True, result=result)
+    except:
+      response = self.error_handler.get_error_response()
+    finally:
+      response['id'] = call_id
+      encoded = self.encoder.encode(response)
       websocket.send(encoded)
-    except BaseException, e:
-      wrapped = dict(success=False, error=dict(message=e.message,
-                                               type=type(e).__name__))
-      websocket.send(self.encoder.encode(wrapped))
 
 
   def handle_rpc(self, call_id, call_spec):
@@ -81,7 +97,7 @@ class JsonRpcServer(object):
 
 class WebServer(object):
   def __init__(self, rpc_server):
-    self.static_files = webob.static.DirectoryApp('web_client')
+    self.static_files = webob.static.DirectoryApp('client')
     self.rpc_server = rpc_server
 
   @webob.dec.wsgify
@@ -96,6 +112,8 @@ class WebServer(object):
     elif root == 'rpc':
       websocket = request.environ['wsgi.websocket']
       self.rpc_server.server_loop(websocket)
+    elif root == '':
+      return webob.exc.HTTPMovedPermanently(location='/client')
 
 
 #gevent / geventwebsocket logging error fix
@@ -113,18 +131,24 @@ gevent.pywsgi.WSGIHandler.log_request = log_request
 handler = None
 
 
-def setup_services():
+def setup_modules(module_names):
   services = {}
-  services['db'] = DB(db.DBPool('sample_db.sqlite', 10, 'sqlite3'))
-  services['math'] = Math()
-  return services
+  filenames = []
+  for module_name in module_names:
+    module = __import__(module_name)
+    filenames.append(module.__file__)
+    mod_services = module.setup_services()
+    services.update(mod_services)
+  return services, filenames
 
 
-def main(run_server):
+def main(run_server, module_names):
   global handler
-  services = setup_services()
+  services, filenames = setup_modules(module_names)
   encoder = RegistryJsonEncoder(sort_keys=True, indent=2)
-  rpc_server = JsonRpcServer(services, encoder, json.JSONDecoder())
+  error_handler = ErrorHandler(os.path.dirname(__file__) + '/', filenames)
+  decoder = json.JSONDecoder()
+  rpc_server = JsonRpcServer(services, encoder, decoder, error_handler)
   web_server = WebServer(rpc_server)
   handler = web_server.handler
   if run_server:
@@ -133,5 +157,6 @@ def main(run_server):
     server.serve_forever()
 
 
-main(__name__ == '__main__')
+if __name__ == '__main__':
+  main(run_server=True, module_names=['services'])
 

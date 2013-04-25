@@ -23,11 +23,13 @@ def encoder_for(src_type):
 
   return register_encoder
 
+
 @encoder_for(DBCursor)
 def encode(cursor):
-  col_names = [desc[0] for desc in cursor.description]
-  for row in cursor.fetchall():
-    yield dict(zip(col_names, row))
+  return {
+    'header': [desc[0] for desc in cursor.description],
+    'rows': cursor.fetchall()
+  }
 
 
 @encoder_for(types.GeneratorType)

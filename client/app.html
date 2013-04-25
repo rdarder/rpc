@@ -1,0 +1,32 @@
+<div ng-controller="main">
+  <div>
+    <input type="number" ng-model="a">
+    <input type="number" ng-model="b">
+    <span> sum: {{result}} </span>
+  </div>
+  <div>
+    <select ng-model="table"
+            ng-options="row[0] as row[0]  for row in table_list.rows">
+      <option value="">Select a Table</option>
+    </select>
+    <table class="table table-bordered table-condensed">
+      <thead>
+      <tr>
+
+        <th ng-repeat="header in table_data.header">
+          {{header}}
+        </th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="row in table_data.rows|limitTo:10">
+        <td ng-repeat="column in row">
+          {{column}}
+        </td>
+      </tr>
+      </tbody>
+    </table>
+    <pre>{{table_create.rows[0][0]}}</pre>
+  </div>
+</div>
+

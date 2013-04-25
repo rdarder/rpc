@@ -1,0 +1,36 @@
+<span class="badge badge-important" ng-show="new_errors.length > 0"
+      ng-click="show_errors=!show_errors">
+  {{new_errors.length}}
+</span>
+
+<div ng-show="show_errors" class="row-fluid">
+  <div class="span4">
+    <ul class="nav nav-pills nav-stacked">
+      <li ng-repeat="error in new_errors">
+        <a ng-click="select($index)">
+          while calling
+          {{error.client.service}}.{{error.client.method}}({{error.client.args|args}})
+          <br/>
+          ({{error.server.type}}) - {{error.server.message}}
+        </a>
+      </li>
+    </ul>
+  </div>
+  <div class="span4">
+    <table class="table table-condensed">
+      <thead>
+      <tr>
+        <th>Location</th>
+        <th>Code</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr ng-repeat="frame in current_error.server.traceback">
+        <td>{{frame.filename}}:{{frame.line}} - {{frame.function}}</td>
+        <td>{{frame.code}}</td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
