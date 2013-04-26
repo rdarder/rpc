@@ -38,7 +38,6 @@ class DB(object):
     return self.query('select * from {}'.format(table))
 
   def query(self, query):
-    gevent.sleep(random.randint(1,5))
     conn = self.pool.get()
     cursor = conn.cursor()
     cursor.execute(query)
