@@ -59,7 +59,7 @@
         self.table_list = tables
       });
       self.rpc_watch('db.get_create', 'table').into('table_create');
-      self.rpc_watch('db.get_all_rows', '; false').into('table_data');
+      self.rpc_watch('db.get_all_rows', 'table').into('table_data');
     }
   ]);
 
