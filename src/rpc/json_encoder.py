@@ -1,7 +1,5 @@
 import json
 import types
-from db import DBCursor
-
 
 class RegistryJsonEncoder(json.JSONEncoder):
   """ Quick and dirty json encoder which accepts functions as type based
@@ -22,14 +20,6 @@ def encoder_for(src_type):
     return impl
 
   return register_encoder
-
-
-@encoder_for(DBCursor)
-def encode(cursor):
-  return {
-    'header': [desc[0] for desc in cursor.description],
-    'rows': cursor.fetchall()
-  }
 
 
 @encoder_for(types.GeneratorType)

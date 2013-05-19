@@ -1,6 +1,6 @@
-import random
 import gevent
 import db
+from rpc.json_encoder import encoder_for
 
 
 def setup_services():
@@ -8,6 +8,15 @@ def setup_services():
   services['db'] = DB(db.DBPool('sample_db.sqlite', 10, 'sqlite3'))
   services['math'] = Math()
   return services
+
+
+@encoder_for(db.DBCursor)
+def encode(cursor):
+  return {
+    'header': [desc[0] for desc in cursor.description],
+    'rows': cursor.fetchall()
+  }
+
 
 
 class Math(object):
