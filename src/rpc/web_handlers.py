@@ -64,6 +64,12 @@ class PackageAssets(object):
     return app(environ, set_content_type)
 
 
+class RequirementAssets(PackageAssets):
+  def __init__(self, requirement_name, base_path):
+    super(RequirementAssets, self).__init__(
+      pkg_resources.Requirement.parse(requirement_name), base_path)
+
+
 class SimpleRouting(object):
   def __init__(self):
     self.routes = {}
