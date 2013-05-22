@@ -1,11 +1,14 @@
+import os
 import gevent
 import db
 from rpc.json_encoder import encoder_for
 
 
 def setup_services():
+  current_dir = os.path.dirname(__file__)
   services = {}
-  services['db'] = DB(db.DBPool('sample_db.sqlite', 10, 'sqlite3'))
+  services['db'] = DB(db.DBPool(os.path.join(
+    current_dir, 'sample_db.sqlite'), 10, 'sqlite3'))
   services['math'] = Math()
   return services
 
