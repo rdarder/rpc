@@ -1,10 +1,12 @@
 import json
 import types
 
+
 class RegistryJsonEncoder(json.JSONEncoder):
-  """ Quick and dirty json encoder which accepts functions as type based
-  encoders.
-  """
+  """ Simple JSON encoder that allows the service developer to add custom
+  encoder for non basic types (i.e. other than list, dict, tuple, int, str,
+  float, bool, etc
+  ."""
   type_encoders = {}
 
   def default(self, obj):
@@ -15,6 +17,11 @@ class RegistryJsonEncoder(json.JSONEncoder):
 
 
 def encoder_for(src_type):
+  """Decorator for registering new type encoders. The decorated function
+  receives an object of the registered type (or a subtype of it) and returns
+  another (simpler) object that can be json encoded.
+  """
+
   def register_encoder(impl):
     RegistryJsonEncoder.type_encoders[src_type] = impl
     return impl
@@ -24,6 +31,9 @@ def encoder_for(src_type):
 
 @encoder_for(types.GeneratorType)
 def encode(gen):
+  """Sample encoder for generators. We just convert a generator to a list,
+  which is the encoder will then further process.
+  """
   return list(gen)
 
 
