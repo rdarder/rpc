@@ -1,5 +1,5 @@
 (function () {
-  var app = angular.module('app', ['rpc']);
+  var app = angular.module('app', ['rpc', 'bootstrap']);
   app.run([ '$location', '$rootScope', 'rpc', 'rpc_watch',
     function (location, rootScope, rpc, rpc_watch) {
       rootScope.rpc = rpc.init('/rpc');
@@ -9,9 +9,19 @@
 
   app.controller('main', [
     '$scope', function (self) {
-      self.a = 10;
-      self.b = 15;
-      self.rpc_watch('math.fast_add', 'a', 'b').into('result');
+      self.a = 15;
+      self.b = 1;
+      self.div_style = 'fast';
+
+      self.server_division = function () {
+        self.rpc('math.div', self.a, self.b).then(function (result) {
+          self.result = result;
+        });
+      };
+      self.$watch('a', self.server_division);
+      self.$watch('b', self.server_division);
+      self.$watch('div_style', self.server_division);
+
 
       self.rpc('db.list_tables').then(function (tables) {
         self.table_list = tables

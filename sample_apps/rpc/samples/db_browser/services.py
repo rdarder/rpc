@@ -30,17 +30,19 @@ def encode(cursor):
 
 class Math(object):
   """
-  Simple Math service. It has two methods that implements addition. slow_add
+  Simple Math service. It has two methods that implements division. slow_div
   is useful for testing how rpc calls may have an arbitrary response time
-  without blocking other calls.
+  without blocking other calls. Both deliberately don't check for zero
+  division, as it's a simple case for getting an error on the client and
+  getting to know the error bar.
   """
 
-  def fast_add(self, a, b):
-    return a + b
+  def div(self, a, b):
+    return float(a) / b
 
-  def slow_add(self, a, b):
+  def slow_div(self, a, b):
     gevent.sleep(5)
-    return a + b
+    return float(a) / b
 
 
 class DB(object):

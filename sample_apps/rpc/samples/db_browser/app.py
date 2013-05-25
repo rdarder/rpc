@@ -19,7 +19,7 @@ def build_app():
   #server rpc requests under '/rpc'
   app.register_route('rpc', WebSocketListener(rpc_server))
   #serve the rpc client files under '/lib'
-  app.register_route('lib', PackageAssets('rpc', 'clients'))
+  app.register_route('lib', RequirementAssets('rpc', 'clients'))
   #serve our own assets, the ones under sample_apps/client/shared under /shared
   #note that we're using RequirementAssets instead of PackageAssets,
   app.register_route('shared',
