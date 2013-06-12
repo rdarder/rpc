@@ -1,4 +1,5 @@
 import mimetypes
+import re
 import wsgiref.headers
 import pkg_resources
 import webob, webob.static, webob.exc
@@ -144,8 +145,11 @@ class SimpleRouting(object):
   def __call__(self, environ, start_response):
     """Handle the request and route it. """
     path_info = environ['PATH_INFO']
-    if path_info in self.redirects:
-      app = webob.exc.HTTPMovedPermanently(location=self.redirects[path_info])
+    for key, redirect in self.redirects.items():
+      if self.match(key, path_info):
+        environ['PATH_INFO'] = redirect
+        return self(environ, start_response)
+      # app = webob.exc.HTTPMovedPermanently(location=self.redirects[path_info])
     else:
       path, cut, prefix = self.first_path_segment(path_info)
       root = path[:cut]
@@ -159,6 +163,15 @@ class SimpleRouting(object):
         app = webob.exc.HTTPNotFound()
     return app(environ, start_response)
 
+  regex_type = type(re.compile(''))
+
+  def match(self, pattern, path_info):
+    if isinstance(pattern, basestring):
+      return pattern == path_info
+    elif isinstance(pattern, self.regex_type):
+      return pattern.match(path_info)
+    else:
+      raise TypeError('unknown pattern type {}'.format(type(pattern)))
 
   def first_path_segment(self, path):
     """

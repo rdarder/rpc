@@ -104,7 +104,7 @@ class RpcServer(object):
 def build_rpc_server(module_names):
   """Build an rpc server for the usual scenario"""
   services, filenames = setup_modules(module_names)
-  encoder = RegistryJsonEncoder(sort_keys=True, indent=2)
+  encoder = RegistryJsonEncoder(sort_keys=True, indent=2, encoding='latin1')
   decoder = json.JSONDecoder()
   error_handler = ErrorHandler(os.path.dirname(__file__) + '/', filenames)
   return RpcServer(services, encoder, decoder, error_handler)

@@ -59,7 +59,7 @@
           },
           into:             function (attr) {
             var self = this;
-            this.then(function (value) {
+            return this.then(function (value) {
               self.scope[attr] = value;
             });
           },
@@ -156,10 +156,10 @@
   ]);
 
   module.controller('rpc.errors', [
-    '$scope', function (self) {
+    '$scope', '$rootScope', function (self, rootScope) {
       self.show_errors = false;
       self.new_errors = [];
-      self.$on('rpc', function (event, err, call) {
+      rootScope.$on('rpc', function (event, err, call) {
         var full_err = {
           server: err,
           client: {
