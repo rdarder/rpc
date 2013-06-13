@@ -92,12 +92,10 @@ class RpcServer(object):
     kwargs = call_spec.get('kwargs', {})
     service_instance = self.services.get(service, None)
     if service_instance is None:
-      return dict(success=False, id=call_id,
-                  error=dict(message="invalid service name"))
+      raise Exception('invalid service_name {}'.format(service))
     method_instance = getattr(service_instance, method, None)
     if method_instance is None or not callable(method_instance):
-      return dict(success=False, id=call_id,
-                  error=dict(message="invalid method name"))
+      raise Exception('invalid method name {}'.format(method))
     return method_instance(*args, **kwargs)
 
 
