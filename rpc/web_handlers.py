@@ -7,27 +7,6 @@ import gevent
 import gevent.pywsgi
 
 
-class WebSocketListener(object):
-  """wsgi app that handles a websocket enabled request and delegates it to
-  the rpc server.
-  """
-
-  def __init__(self, server):
-    """
-    :type rpc_server: rpc.rpc_server.RpcServer
-    """
-    self.rpc_server = server
-
-  def __call__(self, environ, start_response):
-    websocket = environ.get('wsgi.websocket')
-    if websocket is None:
-      start_response('400 Bad Request', [('Content-Type', 'text/plain')])
-    else:
-      self.rpc_server.server_loop(websocket)
-      start_response('200 OK', [('Content-Type', 'text/plain')])
-      return ['']
-
-
 def _log_request(self):
   """Temporary fix for a bug in geventwebsocket or pywsgi logging."""
   log = self.server.log
@@ -95,11 +74,12 @@ class PackageAssets(object):
     else:
       try:
         res = pkg_resources.resource_stream(self.package_name, resource_path)
-        if 'wsgi.file_wrapper' in environ:
-          app = environ['wsgi.file_wrapper'](res, self.BLOCK_SIZE)
-        else:
-          app = (webob.Response(app_iter=webob.static.FileIter(res))
-                 .conditional_response_app)
+        # if 'wsgi.file_wrapper' in environ:
+        #   app = environ['wsgi.file_wrapper'](res, self.BLOCK_SIZE)
+        #   return app
+        # else:
+        app = (webob.Response(app_iter=webob.static.FileIter(res))
+               .conditional_response_app)
       except:
         app = webob.exc.HTTPNotFound()
     return app(environ, set_content_type)
@@ -149,7 +129,6 @@ class SimpleRouting(object):
       if self.match(key, path_info):
         environ['PATH_INFO'] = redirect
         return self(environ, start_response)
-      # app = webob.exc.HTTPMovedPermanently(location=self.redirects[path_info])
     else:
       path, cut, prefix = self.first_path_segment(path_info)
       root = path[:cut]
