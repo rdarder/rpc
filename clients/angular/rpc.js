@@ -63,21 +63,30 @@
 
       return {
         init: function (url) {
-          function rpc(svc_dot_method) {
-            var scope = this,
-              split_svc = svc_dot_method.split('.'),
-              svc = split_svc[0],
-              method = split_svc[1],
-              args = [].splice.call(arguments, 1),
-              call = new RpcCall(url, scope, svc, method, args);
-            call.finalize(null, function (error) {
-              scope.$emit('rpc', error, call);
-            });
-            call.send();
-            return call;
-          }
+          var pending_requests = 0;
+          return {
+            rpc:  function (svc_dot_method) {
+              pending_requests += 1;
+              var scope = this,
+                split_svc = svc_dot_method.split('.'),
+                svc = split_svc[0],
+                method = split_svc[1],
+                args = [].splice.call(arguments, 1),
+                call = new RpcCall(url, scope, svc, method, args);
+              call.finalize(function () {
+                pending_requests -= 1;
+              }, function (error) {
+                pending_requests -= 1;
+                scope.$emit('rpc', error, call);
+              });
+              call.send();
+              return call;
+            },
+            busy: function () {
+              return (pending_requests > 0);
 
-          return rpc;
+            }
+          }
         }
       };
     }
