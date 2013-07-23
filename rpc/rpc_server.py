@@ -1,10 +1,12 @@
 import json
 import os
 from geventwebsocket import WebSocketError
-import gevent
+import gevent, gevent.monkey
 from rpc.errors import ErrorHandler
 from rpc.json_encoder import RegistryJsonEncoder
 from rpc.service_loader import setup_modules
+
+gevent.monkey.patch_all()
 
 
 class RpcServer(object):
